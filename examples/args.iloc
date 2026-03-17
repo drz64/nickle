@@ -1,0 +1,45 @@
+.memory 64
+.registers 4
+
+.data
+    A:  .char 65
+    x:   .int  42
+    B:  .char 66
+    msg: .string "Hi"
+
+.code
+    p_prompt "here we go!\n"
+    // --- static data prints ---
+
+    loadAI  r_static, @x   => r1
+    p_int   r1
+
+    loadAI  r_static, @A  => r1
+    p_char  r1
+
+    loadAI  r_static, @B  => r1
+    p_char  r1
+
+    loadAI  r_static, @msg => r1
+    p_str   r1
+
+    // --- print argv (Java-style: excludes argv[0]) ---
+    // r_argc = argc - 1
+    // r_argv points to argv[1]
+
+    loadI   0              => r1        // i = 0
+
+L_loop:
+    cmp_LT  r1, r_argc     => r2
+    cbr     r2             => L_body, L_done
+
+L_body:
+    multI   r1, 8          => r3
+    add     r_argv, r3     => r3
+    load    r3             => r3
+    p_str   r3
+    addI    r1, 1          => r1
+    jumpI                  => L_loop
+
+L_done:
+    halt

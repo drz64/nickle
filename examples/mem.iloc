@@ -1,0 +1,15 @@
+.registers 4
+.memory 32
+
+.data
+    A:  .char 65
+    x:   .int  42
+    B:  .char 66
+    msg: .string "Hi"
+    C:  .char 67
+
+.code
+    loadI 0 => r0
+    loadI 32 => r1
+    d_mem r0, r1
+    d_reg

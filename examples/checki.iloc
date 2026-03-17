@@ -1,0 +1,34 @@
+// iterate over command line arguments
+
+.code
+loadI 0      => r11        // i = 0
+
+loop:
+cmp_LT r11, r_argc => r12
+cbr r12 => body, done
+
+body:
+    multI   r11, 8          => r5
+    loadAO r_argv, r5 => r13    // r13 = argv[i]
+
+is_i r13 => r14
+
+p_prompt "arg: "
+p_str r13
+p_prompt " -> "
+
+cbr r14 => pass, fail
+
+pass:
+p_prompt "PASS\n"
+jumpI => next
+
+fail:
+p_prompt "FAIL\n"
+
+next:
+addI r11, 1 => r11
+jumpI => loop
+
+done:
+halt

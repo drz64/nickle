@@ -1,0 +1,33 @@
+.registers 6
+.memory 65536
+
+.code
+
+    // r0 = argv base
+    loadI r_argv => r0
+
+    // r1 = argv[0] (pointer to N string)
+    load r0 => r1
+
+    // r2 = N
+    atoi r1 => r2
+
+    // r3 = k = 1
+    loadI 1 => r3
+
+    // r5 = sum = 0
+    loadI 0 => r5
+
+loop:
+    // if k > N goto end
+    cmp_GT r3, r2 => r4
+    cbr r4 end, body
+
+body:
+    add r5, r3 => r5
+    addI r3, 1 => r3
+    jumpI loop
+
+end:
+    p_int r5
+    halt
