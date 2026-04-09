@@ -4,109 +4,110 @@
 
 static inline uint64_t shamt64(uint64_t x) { return x & 63u; }
 
-void iloc_nop(cpu_t* cpu) { (void)cpu; }
+void iloc_nop() { /* no-op */}
 
-void iloc_add(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_add() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] + cpu->regs[r2];
 }
 
-void iloc_sub(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_sub() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] - cpu->regs[r2];
 }
 
-void iloc_mult(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_mult() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] * cpu->regs[r2];
 }
 
-void iloc_div(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
-    uint64_t d = cpu->regs[r2];
-    if (d == 0) nickle_trap(cpu, "division by zero");
-    cpu->regs[r3] = (uint64_t)((int64_t)cpu->regs[r1] / (int64_t)d);
+void iloc_div() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
+    int64_t d = cpu->regs[r2];
+    if (d == 0) nickle_trap("division by zero");
+    cpu->regs[r3] = cpu->regs[r1] / d ;
 }
 
-void iloc_addI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_addI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] + imm;
 }
 
-void iloc_subI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_subI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] - imm;
 }
 
-void iloc_rsubI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_rsubI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = imm - cpu->regs[r1];
 }
 
-void iloc_multI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_multI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] * imm;
 }
 
-void iloc_divI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
-    if (imm == 0) nickle_trap(cpu, "division by zero");
-    cpu->regs[r3] = (uint64_t)((int64_t)cpu->regs[r1] / (int64_t)imm);
+void iloc_divI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
+    if (imm == 0) nickle_trap("division by zero");
+    cpu->regs[r3] = cpu->regs[r1] / imm;
 }
 
-void iloc_rdivI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
-    uint64_t d = cpu->regs[r1];
-    if (d == 0) nickle_trap(cpu, "division by zero");
-    cpu->regs[r3] = (uint64_t)((int64_t)imm / (int64_t)d);
+void iloc_rdivI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
+    int64_t d = cpu->regs[r1];
+    if (d == 0) nickle_trap("division by zero");
+    cpu->regs[r3] = imm / d ;
 }
 
-void iloc_lshift(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_lshift() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] << shamt64(cpu->regs[r2]);
 }
 
-void iloc_lshiftI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
+void iloc_lshiftI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     if (cpu->halted) return;
     cpu->regs[r3] = cpu->regs[r1] << shamt64(imm);
 }
 
-void iloc_rshift(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_rshift() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = (uint64_t)((int64_t)cpu->regs[r1] >> shamt64(cpu->regs[r2]));
 }
 
-void iloc_rshiftI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_rshiftI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = (uint64_t)((int64_t)cpu->regs[r1] >> shamt64(imm));
 }
 
-void iloc_and(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_and() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] & cpu->regs[r2];
 }
 
-void iloc_andI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_andI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] & imm;
 }
 
-void iloc_or(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_or() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] | cpu->regs[r2];
 }
 
-void iloc_orI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_orI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] | imm;
 }
 
-void iloc_xor(cpu_t* cpu, int r1, int r2, int r3) {
-    if (cpu->halted) return;
+void iloc_xor() {
+    size_t r1 = r() ; size_t r2 = r() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] ^ cpu->regs[r2];
 }
 
-void iloc_xorI(cpu_t* cpu, int r1, uint64_t imm, int r3) {
-    if (cpu->halted) return;
+void iloc_xorI() {
+    size_t r1 = r() ; int64_t imm = op() ; size_t r3 = r() ; 
     cpu->regs[r3] = cpu->regs[r1] ^ imm;
 }

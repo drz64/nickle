@@ -1,0 +1,49 @@
+.registers 16
+.memory 2048
+.define BASE 0x100 // starting address to store results
+.define WORD 8 // number of bytes per integer
+.code
+
+    // do we have a CLA?
+    loadI 1 => r0
+    cmp_LT r_argc, r0 => r0
+    cbr r0 => error1, check
+
+check:
+    // is it a number ?
+    load r_argv => r0
+    is_i r0 => r1
+    cbr r1 => start, error2
+
+start:
+    atoi r0 => r0       // r0 <- N
+    loadI 1 => r1       // r1 <- kth odd number
+    loadI 0 => r2       // r2 <- kth perfect square
+    loadI ?BASE => r3   // r3 <- where to store kth result
+
+loop:
+    cbr r0 => body, end
+
+body:
+    add r2, r1 => r2    // square += odd
+    store r2 => r3      // BASE[k] = square
+
+    addI r1, 2 => r1     // odd += 2
+    addI r3, ?WORD => r3  // advance BASE[k]
+    addI r0, -1 => r0     // N--
+
+    jumpI => loop
+
+end:
+    loadI ?BASE => r0 
+    d_mem r0, r3
+    halt
+
+error1: 
+    p_prompt "need one <number>\n"
+    halt
+
+error2: 
+    p_prompt "given argument is not a number\n"
+    halt
+

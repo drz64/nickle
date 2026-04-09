@@ -1,5 +1,7 @@
 // iterate over command line arguments
 
+.limit 64
+
 .code
 loadI 0      => r11        // i = 0
 

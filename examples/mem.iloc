@@ -1,5 +1,7 @@
 .registers 4
 .memory 32
+.define RANGE_FROM 0
+.define RANGE_TO 32
 
 .data
     A:  .char 65
@@ -9,7 +11,7 @@
     C:  .char 67
 
 .code
-    loadI 0 => r0
-    loadI 32 => r1
+    loadI ?RANGE_FROM => r0
+    loadI ?RANGE_TO   => r1
     d_mem r0, r1
     d_reg

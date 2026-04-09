@@ -1,0 +1,27 @@
+.memory 64
+.registers 4
+
+.data
+    x:   .int  42
+    y:   .int  0x64
+    z:   .int 64
+
+.code
+    i2i r_ra => r0
+    p_prompt "starting main!\n"
+    jsr f 
+    p_prompt "back to main!\n"
+    ret r0
+    p_prompt "this should not be printed!\n"
+    halt
+    p_prompt "neither would this!\n"
+
+f:
+    p_prompt "in f!\n"
+    i2i r_ra => r2
+    jsr g
+    ret r2
+
+g:
+    p_prompt "in g!\n"
+    ret r_ra

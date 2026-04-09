@@ -1,29 +1,28 @@
-#include "iloc.h"
+#include "nickle.h"
 #include "cpu.h"
+#include "iloc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <execinfo.h>
+#include <stdarg.h>
 
-const int EXTRA_REGS = 3 ; 
-const int R_STATIC_OFFSET = 0 ; 
-const int R_ARGC_OFFSET = 1 ; 
-const int R_ARGV_OFFSET = 2 ; 
+cpu_t *cpu ; // global. singleton.
 
-
-int get_r_static_idx(cpu_t *cpu)    {return cpu->reg_count+R_STATIC_OFFSET;   }
-int get_r_argc_idx(cpu_t *cpu)      {return cpu->reg_count+R_ARGC_OFFSET; }
-int get_r_argv_idx(cpu_t *cpu)      {return cpu->reg_count+R_ARGV_OFFSET; }
-int get_reg(cpu_t *cpu, int idx)    {return cpu->regs[idx] ;}
-
-static void die(const char* msg) {
-    fprintf(stderr, "%s\n", msg);
+void die(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    fputc('\n',stderr);
+    va_end(args);
     exit(1);
 }
 
-void nickle_trap(cpu_t* cpu, const char* msg) {
+
+void nickle_trap(const char* msg) {
     fprintf(stderr, "Nickle trap: %s\n", msg);
     void *buffer[50];
     int n = backtrace(buffer, 50);
@@ -31,31 +30,43 @@ void nickle_trap(cpu_t* cpu, const char* msg) {
     exit(1);
 }
 
-void nickle_check_mem(cpu_t* cpu, uint64_t addr, uint64_t size) {
-    if (addr < 0 || size < 0 || addr + size > cpu->mem_size) nickle_trap(cpu, "memory access out of range");
+void nickle_check_mem(uint64_t addr, uint64_t size) {
+    if (addr < 0 || size < 0 || addr + size > cpu->mem_size) nickle_trap("memory access out of range");
 }
 
-void nickle_init(cpu_t* cpu, size_t user_regs, size_t mem_size) {
-    cpu->reg_count  = user_regs;
+cpu_t *nickle_init() {
 
-    cpu->regs = calloc(cpu->reg_count+EXTRA_REGS, sizeof(uint64_t));
+    size_t user_regs = PROGRAM_USER_REGS ; 
+    size_t mem_size = PROGRAM_MEM_SIZE ; 
+
+    cpu = (cpu_t *) malloc(sizeof(cpu_t)) ; 
+    if (!cpu) die("allocation failed");
+
+    int total_regs = user_regs+R_EXTRA_SIZE ; 
+    cpu->regs = calloc(total_regs, sizeof(int64_t));
     cpu->mem  = calloc(mem_size, 1);
+    if (!cpu->regs || !cpu->mem) die("allocation failed");
+
+    cpu->reg_count  = user_regs;
     cpu->mem_size = mem_size;
 
-    if (!cpu->regs || !cpu->mem) die("allocation failed");
-    cpu->halted = false;
+    cpu->halted = true; // we're off by default. see run() 
+    cpu->pc = 0 ; 
+    cpu->limit = PROGRAM_RUN_LIMIT ;
+    return cpu ; 
 }
 
-void nickle_free(cpu_t* cpu) {
+void nickle_free() {
     free(cpu->regs);
     free(cpu->mem);
+    free(cpu) ; 
 }
 
-void nickle_build_static(cpu_t* cpu) {
+void nickle_build_static() {
     uint64_t inline_size = 0;
     uint64_t string_size = 0;
 
-    for (size_t i = 0; i < STATIC_COUNT; i++) {
+    for (int i = 0; i < STATIC_COUNT; i++) {
         switch (STATIC_DATA[i].kind) {
             case D_INT:
                 inline_size += 8 ; 
@@ -69,23 +80,20 @@ void nickle_build_static(cpu_t* cpu) {
                 string_size += (uint64_t)strlen(STATIC_DATA[i].v.s) + 1;
                 inline_size += 8 ;
                 break ; 
-
-            
         }
     }
 
     uint64_t total = inline_size + string_size;
-    if (total > cpu->mem_size) nickle_trap(cpu, "static preload does not fit in memory");
+    if (total > cpu->mem_size) nickle_trap("static preload does not fit in memory");
 
     uint64_t base  = (uint64_t)cpu->mem_size - total;
 
-    cpu->regs[get_r_static_idx(cpu)] = base;
+    cpu->regs[cpu->reg_count+R_STATIC_OFFSET] = base;
 
     uint64_t inline_ptr = base;
     uint64_t string_ptr = base + inline_size;
 
-    for (size_t i = 0; i < STATIC_COUNT; i++) {
-// Z says no need.       nickle_check_mem(cpu, inline_ptr, 8);
+    for (int i = 0; i < STATIC_COUNT; i++) {
         switch (STATIC_DATA[i].kind) {
 
             case D_INT:
@@ -101,7 +109,6 @@ void nickle_build_static(cpu_t* cpu) {
             case D_STRING: {
                 const char* s = STATIC_DATA[i].v.s;
                 size_t n = strlen(s) + 1;
-                nickle_check_mem(cpu, string_ptr, (uint64_t)n);
                 memcpy(cpu->mem + inline_ptr, &string_ptr, 8);
                 memcpy(cpu->mem + string_ptr, s, n);
                 string_ptr += (uint64_t)n;
@@ -112,49 +119,52 @@ void nickle_build_static(cpu_t* cpu) {
     }
 }
 
-void nickle_build_args(cpu_t* cpu, int argc, char** argv) {
-    int count = argc > 1 ? argc - 1 : 0;
-    cpu->regs[get_r_argc_idx(cpu)] = (uint64_t)count;
+void nickle_build_args(int argc, char** argv) {
+    int count = argc > 1 ? argc - 1 : 0; // same, but stresses a point. 
+    cpu->regs[cpu->reg_count+R_ARGC_OFFSET] = count;
 
     if (count == 0) {
-        cpu->regs[get_r_argv_idx(cpu)] = 0;
+        cpu->regs[cpu->reg_count+R_ARGV_OFFSET] = 0;
         return;
     }
 
-    uint64_t inline_size = (uint64_t)count * 8u;
+    uint64_t inline_size = (uint64_t)count * 8;
     uint64_t string_size = 0;
 
     for (int i = 1; i < argc; i++)
-        string_size += (uint64_t)strlen(argv[i]) + 1u;
+        string_size += (uint64_t)strlen(argv[i]) + 1;
 
     uint64_t total = inline_size + string_size;
 
-    uint64_t static_base = cpu->regs[get_r_static_idx(cpu)];
-    if (total > static_base) nickle_trap(cpu, "CLI preload does not fit below static block");
+    uint64_t static_base = cpu->regs[cpu->reg_count+R_STATIC_OFFSET];
+    if (total > static_base) nickle_trap("CLI preload does not fit below static block");
 
     uint64_t cli_base = static_base - total;
-    cpu->regs[get_r_argv_idx(cpu)] = cli_base;
+    cpu->regs[cpu->reg_count+R_ARGV_OFFSET] = cli_base;
 
     uint64_t inline_ptr = cli_base;
     uint64_t string_ptr = cli_base + inline_size;
 
     for (int i = 1; i < argc; i++) {
         size_t n = strlen(argv[i]) + 1;
-        nickle_check_mem(cpu, inline_ptr, 8);
-        nickle_check_mem(cpu, string_ptr, (uint64_t)n);
         memcpy(cpu->mem + inline_ptr, &string_ptr, 8);
         memcpy(cpu->mem + string_ptr, argv[i], n);
-        string_ptr += (uint64_t)n;
+        string_ptr += n;
         inline_ptr += 8;
     }
 }
 
+
 int main(int argc, char** argv) {
-    cpu_t cpu;
-    nickle_init(&cpu, PROGRAM_USER_REGS, PROGRAM_MEM_SIZE);
-    nickle_build_static(&cpu);
-    nickle_build_args(&cpu, argc, argv);
-    iloc_main(&cpu);
-    nickle_free(&cpu);
+    operators_registration() ;
+    cpu = nickle_init();
+    nickle_build_static();
+    nickle_build_args(argc, argv);
+    cpu->regs[cpu->reg_count+R_RA_OFFSET] = PROGRAM_COUNT - 1 ; 
+    run() ; 
+#ifdef DUMPREGS
+    iloc_d_reg() ; 
+#endif
+    nickle_free();
     return 0;
 }

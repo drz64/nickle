@@ -1,0 +1,28 @@
+changes.txt (v 0.2 - April 8, 2026)
+
+1. iloc programs are now compiled into op-codes, not c-function calls as in version 0.1 
+
+2. the cpu has an explicit program counter (pc,) but is not exposed directly to the programmer. 
+   `pc` is now included in the information printed by `d_reg`.
+
+3. Added the special register `r_ra` (return address) which is explained in the following point. 
+
+4. added two new control instructions. 
+   - `jsr label` 
+     `jsr` behaves similar to `jumpI` but also stores the address of the opcode following the `jsr` in the special register `r_ra`.
+
+   - `ret reg`
+     jumps to the instruction at the location pointed to by `reg`. 
+     
+   The pair `jsr`/`ret` provides basic facilities for subroutines.
+
+5. The directive `.limit n` is now added. If `n` is positive, the cpu would halt after `n` instructions get executed. Setting `n` to zero (which is the default) disables this feature. 
+
+6. The directive `.define ID NUMBER` adds a textual substituion capability to the iloc compiler. (similar to #define in C programs except only for numerical literals). NUMBER could be expressed in any of the supported formats. 
+
+7. Number of registers is now 16 by default. 
+
+8. Three compilation -D defines have been added: 
+   - `-D DUMPREGS` executes a `d_reg` before halting.
+   - `-D TRACE` prints the pc/opcode before executing each instruction. 
+   - `-D FORCE_LIMIT=n` overrides the `.limit` directive setting to `n`. 

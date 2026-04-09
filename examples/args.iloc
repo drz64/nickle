@@ -1,4 +1,4 @@
-.memory 64
+.memory 1024
 .registers 4
 
 .data
